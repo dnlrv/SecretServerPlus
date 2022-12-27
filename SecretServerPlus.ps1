@@ -16,7 +16,7 @@ function global:Connect-SecretServerInstance
 		[System.String]$User
 	)
 
-	[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls13
+	[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 	# Debug preference
 	if ($PSCmdlet.MyInvocation.BoundParameters["Debug"].IsPresent)
@@ -63,7 +63,13 @@ function global:Connect-SecretServerInstance
 	}
 	Catch
 	{
-		$_
+		$LastError = [SSAPIException]::new("A SecretServerAPI error has occured. Check `$LastError for more information")
+        $LastError.APICall = $APICall
+        $LastError.Payload = $Body
+        $LastError.Response = $InitialResponse
+        $LastError.ErrorMessage = $_.Exception.Message
+        $global:LastError = $LastError
+        Throw $_.Exception
 	}
 
 	# if the initial response was successful
@@ -89,10 +95,11 @@ function global:Connect-SecretServerInstance
 		$global:SecretServerSessionInformation = @{ Headers = $headers; ContentType = "application/json" }
 
 		return ($Connection | Select-Object User,PodFqdn | Format-List)
-	}
+	}# if ($InitialResponse.StatusCode -eq 200)
 	else
 	{
-		echo "oopsies"
+		Write-Host ("Connection failed.")
+		return $InitialResponse
 	}
 
 	#return $InitialResponse
@@ -129,7 +136,17 @@ function global:Invoke-SecretServerAPI
 
         # making the call using our a Splat version of our connection
         #$Response = Invoke-RestMethod -Method Get -Uri $uri -Body $Body @global:SecretServerSessionInformation
-		$Response = Invoke-RestMethod -Uri $uri -Method $Method -Body $Body @global:SecretServerSessionInformation
+		# if -Body was used, include that
+		if ($PSBoundParameters.ContainsKey('Body'))
+		{
+			$Response = Invoke-RestMethod -Uri $uri -Method $Method -Body $Body @global:SecretServerSessionInformation
+		}
+		else # don't include the Body parameter
+		{
+			$Response = Invoke-RestMethod -Uri $uri -Method $Method @global:SecretServerSessionInformation
+		}
+		
+		
 		return $Response
 		
     }# Try
