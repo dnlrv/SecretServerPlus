@@ -165,6 +165,61 @@ function global:Invoke-SecretServerAPI
 ###########
 
 ###########
+#region ### global:New-SecretServerFolder # Creates a new Secret Server Folder
+###########
+function global:New-SecretServerFolder
+{
+	param
+    (
+		[Parameter(Position = 0, Mandatory = $true, HelpMessage = "Specify parent Folder for this new Folder. Default is the Root Folder.")]
+        [System.String]$Name,
+
+        [Parameter(Position = 0, Mandatory = $false, HelpMessage = "Specify parent Folder for this new Folder. Default is the Root Folder.")]
+        [System.String]$ParentFolder = "Root"
+    )# param
+
+	if ($ParentFolder -eq "Root")
+	{
+		$parentFolderId = -1
+		$inheritPermissions = "false"
+		$inheritSecretPolicy = "false"
+	}
+	else
+	{
+		# get the folders
+		$Folders = Invoke-SecretServerAPI -API api/v1/folders
+
+		# if there is a folder that name matches the ParentFolder parameter
+		if ($folder = $Folders.records | Where-Object {$_.folderName -eq $ParentFolder})
+		{
+			# set the parentFolderId to this folder's ID
+			$parentFolderId = $folder.id
+			$inheritPermissions = "true"
+			$inheritSecretPolicy = "true"
+		}
+		else
+		{
+			Write-Host ("Parent Folder [{0}] not found." -f $ParentFolder)
+			return $false
+		}
+	}# else
+
+	# preparing the JSON body
+	$JSONBody = @{}
+	$JSONBody.folderName = $Name
+	$JSONBody.folderTypeId = 1
+	$JSONBody.inheritPermissions = $inheritPermissions
+	$JSONBody.inheritSecretPolicy = $inheritSecretPolicy
+	$JSONBody.parentFolderId = $parentFolderId
+	$JSONBody = $JSONBody | ConvertTo-Json
+
+	# create the folder
+	Invoke-SecretServerAPI -APICall api/v1/folders/ -Method POST -Body $JSONBody
+}# function global:New-SecretServerFolder
+#endregion
+###########
+
+###########
 #region ### global:TEMPLATE # TEMPLATE
 ###########
 #function global:Invoke-TEMPLATE
