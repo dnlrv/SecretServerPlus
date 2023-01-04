@@ -220,6 +220,133 @@ function global:New-SecretServerFolder
 ###########
 
 ###########
+#region ### global:New-SecretServerSecret # Could be better but it works
+###########
+function global:New-SecretServerSecret
+{
+	param
+    (
+		[Parameter(Position = 0, Mandatory = $true, HelpMessage = "Specify the name of this Secret.")]
+        [System.String]$Name,
+
+        [Parameter(Position = 1, Mandatory = $false, HelpMessage = "Specify the parent Folder Id.")]
+        [System.String]$FolderId,
+
+		[Parameter(Position = 2, Mandatory = $true, HelpMessage = "Specify Secret Template Id.")]
+        [System.String]$SecretTemplateId,
+
+		[Parameter(Position = 3, Mandatory = $true, HelpMessage = "Specify the Site.")]
+        [System.String]$Site,
+
+		[Parameter(Position = 4, Mandatory = $true, HelpMessage = "Specify the slugs.")]
+        [PSCustomObject[]]$Slugs
+    )# param
+
+	# initial payload set
+	$data = @{}
+
+	# adding fields
+	$data.autoChangePassword = ""
+	$data.enableInheritSecretPolicy = $true
+	$data.folderId = $FolderId
+	$data.generateSshKeys = $false
+	$data.name = $Name
+	$data.secretPolicy = ""
+	$data.site = $Site
+	$data.templateId = $SecretTemplateId
+
+	# new ArrayList for the slugs
+	$fields = New-Object System.Collections.ArrayList
+
+	# adding the slugs and fields
+	$fields.AddRange(@($Slugs)) | Out-Null
+	$data.fields = $fields
+
+	# new hashtable for the parent 
+	$JSONBody = @{}
+	$JSONBody.data = $data
+
+	# creating the secret
+	Invoke-SecretServerAPI -APICall internals/secret-detail -Method POST -Body ($JSONBody | ConvertTo-Json -Depth 5)
+}# function global:New-SecretServerSecret
+#endregion
+###########
+
+###########
+#region ### global:TEMPLATE # TEMPLATE
+###########
+function global:Get-SecretServerFolderId
+{
+	param
+    (
+		[Parameter(Position = 0, Mandatory = $true, HelpMessage = "Specify the name of the Folder to get the FolderId.")]
+        [System.String]$Name
+    )# param
+
+	# get the folder count
+	$FoldersforCount = Invoke-SecretServerAPI -APICall api/v1/folders
+
+	# getting all the folders
+	$Folders = Invoke-SecretServerAPI -APICall ("api/v1/folders?take={0}" -f $FoldersforCount.total)
+
+
+	return $Folders.records | Where-Object {$_.folderName -eq $Name} | Select-Object -ExpandProperty id
+}# function global:Get-SecretServerFolderId
+#endregion
+###########
+
+###########
+#region ### global:Get-SecretServerSecretTemplate # TEMPLATE
+###########
+function global:Get-SecretServerSecretTemplate
+{
+	param
+    (
+		[Parameter(Position = 0, Mandatory = $false, HelpMessage = "Specify the name of the Secret Template.")]
+        [System.String]$Name
+    )# param
+
+	# getting the template count
+	$TemplatesCount = Invoke-SecretServerAPI -APICall api/v1/secret-templates
+
+	# getting all the templates
+	$Templates = Invoke-SecretServerAPI -APICall ("api/v1/secret-templates?take={0}" -f $TemplatesCount.total)
+
+	if ($PSBoundParameters.ContainsKey('Name'))
+	{
+		return $Templates.records | Where-Object {$_.name -eq $Name}
+	}
+	else
+	{
+		return $Templates.records
+	}
+}# function global:Get-SecretServerSecretTemplate
+#endregion
+###########
+
+###########
+#region ### global:Get-SecretServerSecretTemplateId # TEMPLATE
+###########
+function global:Get-SecretServerSecretTemplateId
+{
+	param
+    (
+		[Parameter(Position = 0, Mandatory = $false, HelpMessage = "Specify the name of the Secret Template.")]
+        [System.String]$Name
+    )# param
+
+	# getting the template count
+	$TemplatesCount = Invoke-SecretServerAPI -APICall api/v1/secret-templates
+
+	# getting all the templates
+	$Templates = Invoke-SecretServerAPI -APICall ("api/v1/secret-templates?take={0}" -f $TemplatesCount.total)
+
+	return $Templates.records | Where-Object {$_.name -eq $Name} | Select-Object -ExpandProperty id
+}# function global:Get-SecretServerSecretTemplateId
+#endregion
+###########
+
+###########
 #region ### global:TEMPLATE # TEMPLATE
 ###########
 #function global:Invoke-TEMPLATE
@@ -235,6 +362,29 @@ function global:New-SecretServerFolder
 #######################################
 #region ### SUB FUNCTIONS #############
 #######################################
+
+###########
+#region ### global:New-Slug # TEMPLATE
+###########
+function global:New-Slug
+{
+	param
+    (
+		[Parameter(Position = 0, Mandatory = $true, HelpMessage = "Specify the name of the property.")]
+        [System.String]$Name, 
+
+		[Parameter(Position = 1, Mandatory = $true, HelpMessage = "Specify the value of the property.")]
+        [System.String]$Value
+    )# param
+
+	$slug = @{}
+	$slug.slug = $Name
+	$slug.value = $Value
+
+	return $slug
+}# function global:New-Slug
+#endregion
+###########
 
 ###########
 ###########
